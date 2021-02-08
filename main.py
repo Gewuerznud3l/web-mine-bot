@@ -65,9 +65,14 @@ while not found:
         found = False
 input = driver.find_element_by_xpath('//*[@id="sign_in_password"]')
 input.send_keys('raspberry')
-btn = driver.find_element_by_xpath('//*[@id="S66"]/div/div/form/div[3]/button[2]')
-btn.click()
-
+found = False
+while not found:
+    found = True
+    try:
+        btn = driver.find_element_by_xpath('//*[@id="S66"]/div/div/form/div[3]/button[2]')
+        btn.click()
+    except:
+        found = False
 if level < 4:
     found = False
     while not found:
@@ -347,13 +352,16 @@ while True:
             if 0 < field[y][x] < 9:
                 if place_flags(x, y):
                     placed = True
+                    break
+        if placed:
+            break
     # click empty
-    cl = False
     for y in range(height):
         for x in range(width):
             if 0 < field[y][x] < 9:
                 if satisfied(x, y):
                     both_click(x, y)
+                    placed = True
     # click best hope
     if not placed:
         if won():
