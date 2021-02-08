@@ -1,18 +1,21 @@
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException
 from selenium.webdriver import ActionChains
-import threading as th
 import time
 
 pi = input('pi? [y]: ') == 'y'
 level = int(input('level?'))
 clickable = 'cell size24 hd_closed'
 number = 'cell size24 hd_opened hd_type'
+ticket = ' cell-ticket'
 flag = 'cell size24 hd_closed hd_flag'
 loose = 'top-area-face zoomable hd_top-area-face-lose'
 wonwon = 'top-area-face zoomable hd_top-area-face-win'
 wins = 0
 losses = 0
 total = 0
+chances = []
+mines = 0
 width, height = 9, 9
 if level == 2:
     width = 16
@@ -31,38 +34,75 @@ driver = webdriver.Chrome()
 driver.get('https://minesweeper.online/')
 
 # login
-time.sleep(1)
 if pi:
     btn = driver.find_element_by_xpath('//*[@id="header"]/nav/div/div/button')
     btn.click()
-    time.sleep(1)
-    btn = driver.find_element_by_xpath('//*[@id="nav_link_sign_in"]/a')
+    found = False
+    while not found:
+        found = True
+        try:
+            btn = driver.find_element_by_xpath('//*[@id="nav_link_sign_in"]/a')
+        except:
+            found = False
     btn.click()
 else:
-    btn = driver.find_element_by_xpath('//*[@id="header"]/div/div/div/button[2]')
-    btn.click()
-time.sleep(1)
-input = driver.find_element_by_xpath('//*[@id="sign_in_username"]')
-input.send_keys('hacked.nudel@gmail.com')
+    btn = None
+    found = False
+    while not found:
+        found = True
+        try:
+            btn = driver.find_element_by_xpath('//*[@id="header"]/div/div/div/button[2]')
+            btn.click()
+        except:
+            found = False
+found = False
+while not found:
+    found = True
+    try:
+        input = driver.find_element_by_xpath('//*[@id="sign_in_username"]')
+        input.send_keys('hacked.nudel@gmail.com')
+    except:
+        found = False
 input = driver.find_element_by_xpath('//*[@id="sign_in_password"]')
 input.send_keys('raspberry')
 btn = driver.find_element_by_xpath('//*[@id="S66"]/div/div/form/div[3]/button[2]')
 btn.click()
 
-time.sleep(1)
 if level < 4:
-    btn = driver.find_element_by_xpath(f'//*[@id="homepage"]/div[2]/div[{level}]/a/div')
-    btn.click()
+    found = False
+    while not found:
+        found = True
+        try:
+            btn = driver.find_element_by_xpath(f'//*[@id="homepage"]/div[2]/div[{level}]/a/div')
+            btn.click()
+        except:
+            found = False
 else:  # custom game
-    btn = driver.find_element_by_xpath('//*[@id="homepage"]/div[2]/div[1]/a/div')
-    btn.click()
-    time.sleep(1)
-    btn = driver.find_element_by_xpath('//*[@id="level_select_4"]/span')
-    btn.click()
-    time.sleep(1)
-    input = driver.find_element_by_xpath('//*[@id="custom_width"]')
-    input.clear()
-    input.send_keys(str(width))
+    found = False
+    while not found:
+        found = True
+        try:
+            btn = driver.find_element_by_xpath('//*[@id="homepage"]/div[2]/div[1]/a/div')
+            btn.click()
+        except:
+            found = False
+    found = False
+    while not found:
+        found = True
+        try:
+            btn = driver.find_element_by_xpath('//*[@id="level_select_4"]/span')
+            btn.click()
+        except:
+            found = False
+    found = False
+    while not found:
+        found = True
+        try:
+            input = driver.find_element_by_xpath('//*[@id="custom_width"]')
+            input.clear()
+            input.send_keys(str(width))
+        except:
+            found = False
     input = driver.find_element_by_xpath('//*[@id="custom_height"]')
     input.clear()
     input.send_keys(str(height))
@@ -71,7 +111,6 @@ else:  # custom game
     input.send_keys(str(mines))
     btn = driver.find_element_by_xpath('//*[@id="C40_content"]/form/button')
     btn.click()
-    time.sleep(1)
 
 '''
 -1: leer, clickbar
@@ -96,10 +135,32 @@ def to_num(cells):
         for x in range(width):
             cell = cells[y][x].get_attribute('class')
             if str(cell).startswith(number):
-                field[y][x] = int(str(cell)[29:])
+                if str(cell).endswith(ticket):
+                    field[y][x] = int(str(cell)[29:len(str(cell)) - len(ticket)])
+                else:
+                    field[y][x] = int(str(cell)[29:])
             elif str(cell) == flag:
                 field[y][x] = 9
     return field
+
+
+def add_num(local_field, posx, posy, searched):
+    offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]]
+    searched[posy][posx] = True
+    for offset in offsets:
+        x = posx + offset[0]
+        y = posy + offset[1]
+        if 0 <= x < width and 0 <= y < height:
+            cell = cells[y][x].get_attribute('class')
+            strcell = str(cell)
+            if strcell.startswith(number):
+                if str(cell).endswith(ticket):
+                    local_field[y][x] = int(str(cell)[29:len(str(cell)) - len(ticket)])
+                else:
+                    local_field[y][x] = int(str(cell)[29:])
+                if local_field[y][x] != -1 and (not searched[y][x]):
+                    local_field, searched = add_num(local_field, x, y, searched)
+    return local_field, searched
 
 
 def right_click(x, y):
@@ -108,8 +169,15 @@ def right_click(x, y):
     actions.context_click(c).perform()
 
 
-def click(x, y, field, cells):
-    c = driver.find_element_by_id(f'cell_{x}_{y}')
+def click(x, y):
+    global losses, total, wins, field, cells, chances
+    found = False
+    while not found:
+        found = True
+        try:
+            c = driver.find_element_by_id(f'cell_{x}_{y}')
+        except NoSuchElementException:
+            found = False
     oldclass = cells[y][x].get_attribute('class')
     c.click()
     cell = oldclass
@@ -119,22 +187,61 @@ def click(x, y, field, cells):
             break
         time.sleep(.1)
     if str(cell).startswith(number):
-        field[y][x] = int(str(cell)[29:])
-    else:
-        field = to_num(cells)
-    if field[y][x] == 0:
-        field = to_num(cells)
-    return field
+        if str(cell).endswith(ticket):
+            field[y][x] = int(str(cell)[29:len(str(cell)) - len(ticket)])
+        else:
+            field[y][x] = int(str(cell)[29:])
+        if field[y][x] == 11:
+            losses += 1
+            total += 1
+            c = 0
+            if len(chances) > 0:
+                for chance in chances:
+                    c += chance
+                c = c // len(chances)
+            print(f'[{total}] verloren {wins}:{losses} ({c}%)')
+            restart()
+            time.sleep(1)
+            return
+        if field[y][x] == 0:
+            s = [[False for x in range(width)] for y in range(height)]
+            field, s = add_num(field, x, y, s)
+
+
+def both_click(posx, posy):
+    global field
+    found = False
+    while not found:
+        found = True
+        try:
+            c = driver.find_element_by_id(f'cell_{posx}_{posy}')
+            c.click()
+        except:
+            found = False
+    for y in range(posy - 1, posy + 2):
+        for x in range(posx - 1, posx + 2):
+            if 0 <= y < height and 0 <= x < width:
+                if field[y][x] == -1:
+                    cell = cells[y][x].get_attribute('class')
+                    while not str(cell).startswith(number):
+                        cell = cells[y][x].get_attribute('class')
+                    if str(cell).endswith(ticket):
+                        field[y][x] = int(str(cell)[29:len(str(cell)) - len(ticket)])
+                    else:
+                        field[y][x] = int(str(cell)[29:])
+                    if field[y][x] == 0:
+                        s = [[False for x in range(width)] for y in range(height)]
+                        field, s = add_num(field, x, y, s)
 
 
 def restart():
-    time.sleep(1)
-    global field, cells
+    global field, cells, chances
+    chances = []
     field = [[-1 for x in range(width)] for y in range(height)]
     driver.find_element_by_xpath('//*[@id="top_area_face"]').click()
-    cells = find_cells()
+    time.sleep(.1)
     while True:
-        field = click(width // 2, height // 2, field, cells)
+        click(width // 2, height // 2)
         if lost():
             restart()
         else:
@@ -145,9 +252,11 @@ def lost():
     face = driver.find_element_by_xpath('//*[@id="top_area_face"]')
     return face.get_attribute('class') == loose
 
+
 def won():
     face = driver.find_element_by_xpath('//*[@id="top_area_face"]')
     return face.get_attribute('class') == wonwon
+
 
 def satisfied(posx, posy):
     mines = 0
@@ -160,15 +269,8 @@ def satisfied(posx, posy):
 
 
 def round_click(posx, posy):
-    global field
-    clicked = False
-    for y in range(posy - 1, posy + 2):
-        for x in range(posx - 1, posx + 2):
-            if 0 <= y < height and 0 <= x < width:
-                if field[y][x] == -1:
-                    field = click(x, y, field, cells)
-                    clicked = True
-    return clicked
+    both_click(posx, posy)
+    return True
 
 
 def place_flags(posx, posy):
@@ -195,41 +297,46 @@ def validate():
     for y in range(height):
         for x in range(width):
             if 0 < field[y][x] < 9:
-                if not satisfied(x, y):
-                    flags = 0
-                    for yy in range(y - 1, y + 2):
-                        for xx in range(x - 1, x + 2):
-                            if 0 <= yy < height and 0 <= xx < width:
-                                if field[yy][xx] == 9:
-                                    flags += 1
-                    clear = 0
+                flags = 0
+                for yy in range(y - 1, y + 2):
+                    for xx in range(x - 1, x + 2):
+                        if 0 <= yy < height and 0 <= xx < width:
+                            if field[yy][xx] == 9:
+                                flags += 1
+                clear = 0
+                for yy in range(y - 1, y + 2):
+                    for xx in range(x - 1, x + 2):
+                        if 0 <= yy < height and 0 <= xx < width:
+                            if field[yy][xx] == -1:
+                                clear += 1
+                if clear != 0:
+                    num = (field[y][x] - flags) * 100 // clear
                     for yy in range(y - 1, y + 2):
                         for xx in range(x - 1, x + 2):
                             if 0 <= yy < height and 0 <= xx < width:
                                 if field[yy][xx] == -1:
-                                    clear += 1
-                    if clear != 0:
-                        num = (field[y][x] - flags) * 100 // clear
-                        for yy in range(y - 1, y + 2):
-                            for xx in range(x - 1, x + 2):
-                                if 0 <= yy < height and 0 <= xx < width:
-                                    if field[yy][xx] == -1:
-                                        if vals[yy][xx] == 100:
-                                            vals[yy][xx] = num
-                                        else:
-                                            vals[yy][xx] = (vals[yy][xx] + num) // 2
+                                    if vals[yy][xx] == 100:
+                                        vals[yy][xx] = num
+                                    else:
+                                        vals[yy][xx] = (vals[yy][xx] + num) // 2
     return vals
 
 
-cells = find_cells()
+found = False
+while not found:
+    found = True
+    try:
+        cells = find_cells()
+    except:
+        found = False
 field = [[-1 for x in range(width)] for y in range(height)]
-for i in range(10):
-    field = click(width // 2, height // 2, field, cells)
+while True:
+    click(width // 2, height // 2)
+    time.sleep(.1)
     if lost():
         restart()
     else:
         break
-    time.sleep(.1)
 
 while True:
     # field = to_num(cells)
@@ -241,42 +348,33 @@ while True:
                 if place_flags(x, y):
                     placed = True
     # click empty
+    cl = False
     for y in range(height):
         for x in range(width):
             if 0 < field[y][x] < 9:
                 if satisfied(x, y):
-                    if round_click(x, y):
-                        placed = True
+                    both_click(x, y)
     # click best hope
     if not placed:
+        if won():
+            wins += 1
+            total += 1
+            c = 0
+            if len(chances) > 0:
+                for chance in chances:
+                    c += chance
+                c = c // len(chances)
+            print(f'[{total}] gewonnen {wins}:{losses} ({c}%)')
+            restart()
+            continue
         values = validate()
         least = 100
         point = (-1, -1)
         for y in range(height):
             for x in range(width):
-                if field[y][x] == -1:
-                    point = (x, y)
-                    break
-            if point != (-1, -1):
-                break
-        if point == (-1, -1):
-            if won():
-                wins += 1
-                total += 1
-                if losses == 0:
-                    print(f'({total})gewonnen')
-                else:
-                    print(f'({total})gewonnen: {wins / losses}')
-                restart()
-            continue
-        for y in range(height):
-            for x in range(width):
                 if 0 < values[y][x] < least:
                     least = values[y][x]
                     point = (x, y)
-        field = click(point[0], point[1], field, cells)
-    if lost():
-        losses += 1
-        total += 1
-        print(f'({total})verloren: {wins / losses}')
-        restart()
+        if point != (-1, -1):
+            chance = 100 - least
+            click(point[0], point[1])
