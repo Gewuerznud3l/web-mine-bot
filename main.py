@@ -379,9 +379,7 @@ while True:
             if 0 < field[y][x] < 9:
                 if place_flags(x, y):
                     placed = True
-                    break
-        if placed:
-            break
+
     # click empty
     for y in range(height):
         for x in range(width):
@@ -434,3 +432,16 @@ while True:
             lastchance = least
             chances += 1
             click(point[0], point[1])
+        else:
+            found = False
+            for y in range(height):
+                for x in range(width):
+                    if field[y][x] == -1:
+                        click(x, y)
+                        lastchance = least
+                        chances += 1
+                        found = True
+                        break
+                if found:
+                    break
+
