@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, ElementNotInteractableException
 from selenium.webdriver import ActionChains
 import time
+import random
 
 pi = input('pi? [y / n]: ') == 'y'
 noflag = input('use flags? [y / n]: ') == 'n'
@@ -175,6 +176,7 @@ def add_num(local_field, posx, posy, searched):
 def right_click(x, y):
     global clicks, field
     if field[y][x] == -1:
+        time.sleep(random.random())
         clicks += 1
         c = driver.find_element_by_id(f'cell_{x}_{y}')
         actions = ActionChains(driver)
@@ -185,6 +187,7 @@ def click(x, y):
     global losses, total, wins, field, cells, lastchance, clicks, chances
     if field[y][x] == -1:
         clicks += 1
+        time.sleep(random.random())
         found = False
         while not found:
             found = True
@@ -221,6 +224,7 @@ def click(x, y):
 def both_click(posx, posy):
     global field, clicks
     if 0 < field[posy][posx] < 9:
+        time.sleep(random.random())
         clicks += 1
         found = False
         while not found:
@@ -254,8 +258,14 @@ def restart():
     field = [[-1 for x in range(width)] for y in range(height)]
     driver.find_element_by_xpath('//*[@id="top_area_face"]').click()
     time.sleep(.1)
+    start = [[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]]
     while True:
-        click(width // 2, height // 2)
+        for point in start:
+            time.sleep(random.random())
+            click(point[0], point[1])
+            if field[point[1]][point[0]] == 0:
+                break
+        time.sleep(.1)
         if lost():
             restart()
         else:
@@ -311,7 +321,7 @@ def place_flags(posx, posy):
             for x in range(posx - 1, posx + 2):
                 if 0 <= y < height and 0 <= x < width:
                     if field[y][x] == -1:
-                        if not noflag:
+                        if not noflag or random.random() > .5:
                             right_click(x, y)
                         field[y][x] = 9
                         clicked = True
@@ -362,8 +372,13 @@ while not found:
     except:
         found = False
 field = [[-1 for x in range(width)] for y in range(height)]
+start = [[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]]
 while True:
-    click(width // 2, height // 2)
+    for point in start:
+        time.sleep(random.random())
+        click(point[0], point[1])
+        if field[point[1]][point[0]] == 0:
+            break
     time.sleep(.1)
     if lost():
         restart()
